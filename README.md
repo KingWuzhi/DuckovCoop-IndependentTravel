@@ -1,10 +1,11 @@
-> ## ⚠️ 本仓库是第三方修改版，非原作者发布
+﻿> ## ⚠️ 本仓库是第三方修改版，非原作者发布
 >
 > 基于上游 [Mr-sans-and-InitLoader-s-team/Escape-From-Duckov-Coop-Mod-Preview](https://github.com/Mr-sans-and-InitLoader-s-team/Escape-From-Duckov-Coop-Mod-Preview) 的 **v1.3.6** 修改而来。核心改动：**取消全员切图投票，允许队员各自前往不同地图（独立分图）**。
 >
 > **本仓库不含上游 v1.4.x 的任何更新**，只适用于所有玩家都使用同一构建的联机场景。
 >
 > - 改动说明：[CHANGELOG.md](CHANGELOG.md)
+> - 项目总览与部署步骤：[docs/PROJECT_OVERVIEW.md](docs/PROJECT_OVERVIEW.md)
 > - 覆盖范围与已知边界：[docs/INDEPENDENT_TRAVEL.md](docs/INDEPENDENT_TRAVEL.md)
 > - 授权沿用上游的 **AGPLv3 + 附加限制**（见 [LICENSE_RESTRICTIONS.txt](LICENSE_RESTRICTIONS.txt)）：禁止商用、禁止架设游戏服务器、分发须保留对原作者的署名
 >
