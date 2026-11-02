@@ -29,6 +29,10 @@ internal static class Patch_Level_StartInit_Gate
         if (mod == null) return true;
         if (mod.IsServer) return true;
 
+        // 独立分图：切图是每个玩家自己的行为，不再需要"等齐一起进场"的屏障。
+        // 这道闸门会把 LevelManager.InitLevel 压后到放行之后，分图模式下等于白等。
+        if (SceneNet.IndependentTravelEnabled) return true;
+
         var needGate = SceneNet.Instance.sceneVoteActive || (mod.networkStarted && !mod.IsServer);
         if (!needGate) return true;
 
