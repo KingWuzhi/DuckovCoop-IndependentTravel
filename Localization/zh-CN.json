@@ -1085,6 +1085,14 @@
       "value": "仅主机可改。开启后将所有玩家代理设为中立队伍以允许误伤，关闭会恢复为玩家队伍。"
     },
     {
+      "key": "ui.settings.independentTravel",
+      "value": "独立分图"
+    },
+    {
+      "key": "ui.settings.independentTravel.desc",
+      "value": "仅主机可改。开启后玩家可以各自前往不同地图，不再强制全队同图；门、箱子、可破坏物与付费机关的状态由主机账本按地图回放，后来进入同一张图的玩家看到一致的内容。"
+    },
+    {
       "key": "ui.settings.themeMode",
       "value": "界面主题"
     },

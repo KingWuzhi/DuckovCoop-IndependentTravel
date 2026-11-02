@@ -61,6 +61,7 @@ public static class LevelDataBoolNet
 
         if (mod.IsServer)
         {
+            SceneStateLedger.RecordLevelBool(key, value);
             ApplyToAll(key, value, key.GetHashCode());
             Broadcast(key, value, key.GetHashCode());
         }
@@ -123,15 +124,31 @@ public static class LevelDataBoolNet
         ApplyToAll(key, rpc.Value, keyHash, rpc.VehicleId, rpc.RequireItemId);
 
         if (context.IsServer)
+        {
+            // 按"发送者所在场景"记进账本：客户端可能在另一张图上操作门锁/机关。
+            var senderScene = SceneStateLedger.ResolvePeerScene(context.Sender);
+            if (string.IsNullOrEmpty(senderScene))
+                senderScene = SceneStateLedger.CurrentSceneId;
+            SceneStateLedger.RecordLevelBool(senderScene, key, rpc.Value);
+
             Broadcast(key, rpc.Value, keyHash, rpc.VehicleId, rpc.RequireItemId);
+        }
     }
 
     public static void Server_SendCostTakerSnapshot(NetPeer target)
     {
+        Server_SendCostTakerSnapshot(target, GetCurrentSceneId());
+    }
+
+    /// <summary>
+    /// 把指定场景里已支付过的 CostTaker 发给目标玩家。
+    /// 独立分图时用于回放"主机不在的那张图"的付费状态。
+    /// </summary>
+    public static void Server_SendCostTakerSnapshot(NetPeer target, string sceneId)
+    {
         if (target == null || PaidCostTakerStates.Count == 0)
             return;
 
-        var sceneId = GetCurrentSceneId();
         foreach (var entry in PaidCostTakerStates)
         {
             if (!SceneMatches(entry.Value.SceneId, sceneId))
@@ -280,7 +297,11 @@ public static class LevelDataBoolNet
             RequireItemId = requireItemId
         };
 
-        CoopTool.SendRpc(in rpc, exclude);
+        // 独立分图时只发给同场景的人，避免把 A 图的机关状态套到 B 图上。
+        if (SceneNet.IndependentTravelEnabled)
+            CoopTool.SendRpcToScene(in rpc, SceneStateLedger.CurrentSceneId, exclude);
+        else
+            CoopTool.SendRpc(in rpc, exclude);
     }
 
     private static void BroadcastCostTakerPaid(string key, int keyHash, long costMoney, string sceneId, NetPeer exclude = null)
@@ -295,7 +316,10 @@ public static class LevelDataBoolNet
             SceneId = sceneId
         };
 
-        CoopTool.SendRpc(in rpc, exclude);
+        if (SceneNet.IndependentTravelEnabled)
+            CoopTool.SendRpcToScene(in rpc, sceneId, exclude);
+        else
+            CoopTool.SendRpc(in rpc, exclude);
     }
 
     private static void ApplyToAll(string key, bool value, int keyHash, int vehicleId = 0, int requireItemId = 0)

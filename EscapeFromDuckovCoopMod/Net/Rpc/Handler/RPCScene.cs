@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -23,11 +23,25 @@ namespace EscapeFromDuckovCoopMod
         {
             if (!context.IsServer) return;
 
-            if (Spectator.Instance._spectatorActive)
-                Spectator.Instance._spectatorEndOnVotePending = true;
-
             var net = SceneNet.Instance;
             if (net == null) return;
+
+            // 独立分图：不发起全队投票，只放行发起者本人去目标地图。
+            if (SceneNet.IndependentTravelEnabled)
+            {
+                net.Server_BeginClientIndependentTravel(
+                    context.Sender,
+                    message.TargetSceneId,
+                    message.CurtainGuid,
+                    message.NotifyEvac,
+                    message.SaveToFile,
+                    message.UseLocation,
+                    message.LocationName);
+                return;
+            }
+
+            if (Spectator.Instance._spectatorActive)
+                Spectator.Instance._spectatorEndOnVotePending = true;
 
             net.Host_BeginSceneVote_Simple(
                 message.TargetSceneId,

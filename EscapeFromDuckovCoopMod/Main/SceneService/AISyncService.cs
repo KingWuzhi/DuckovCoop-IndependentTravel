@@ -1,4 +1,4 @@
-﻿// Escape-From-Duckov-Coop-Mod-Preview
+// Escape-From-Duckov-Coop-Mod-Preview
 // Copyright (C) 2025  Mr.sans and InitLoader's team
 //
 // This program is not a free software.
@@ -707,6 +707,17 @@ public sealed class AISyncService
     public void Server_HandleSnapshotRequest(RpcContext context, AISnapshotRequestRpc message)
     {
         if (!IsServer || context.Sender == null) return;
+
+        // 独立分图：请求者不在主机所在场景时，不要把主机这张图的 AI 回放过去。
+        if (SceneNet.IndependentTravelEnabled)
+        {
+            var peerScene = SceneStateLedger.ResolvePeerScene(context.Sender);
+            var hostScene = SceneStateLedger.CurrentSceneId;
+            if (!string.IsNullOrEmpty(peerScene) && !string.IsNullOrEmpty(hostScene) &&
+                !string.Equals(peerScene, hostScene, StringComparison.Ordinal))
+                return;
+        }
+
         if (CheckAndHandleSyncBlock()) return;
 
         try
@@ -1718,6 +1729,28 @@ public sealed class AISyncService
         Client_TryScheduleSnapshotRecovery(forceFull);
     }
 
+    private void SendToSameScenePeers(NetDataWriter writer, DeliveryMethod delivery)
+    {
+        var manager = Service?.netManager;
+        if (manager == null) return;
+
+        var hostScene = SceneStateLedger.CurrentSceneId;
+        if (string.IsNullOrEmpty(hostScene)) return;
+
+        var peers = manager.ConnectedPeerList;
+        for (var i = 0; i < peers.Count; i++)
+        {
+            var peer = peers[i];
+            if (peer == null) continue;
+
+            var peerScene = SceneStateLedger.ResolvePeerScene(peer);
+            if (string.IsNullOrEmpty(peerScene)) continue;
+            if (!string.Equals(peerScene, hostScene, StringComparison.Ordinal)) continue;
+
+            peer.Send(writer, delivery);
+        }
+    }
+
     private void BroadcastSpawn(AISyncEntry entry, HashSet<NetPeer> targets)
     {
         if (!IsServer || entry == null) return;
@@ -1734,6 +1767,10 @@ public sealed class AISyncService
             {
                 foreach (var peer in targets)
                     peer?.Send(writer, descriptor.Delivery);
+            }
+            else if (SceneNet.IndependentTravelEnabled)
+            {
+                SendToSameScenePeers(writer, descriptor.Delivery);
             }
             else
             {
@@ -1762,7 +1799,11 @@ public sealed class AISyncService
         {
             writer.Put((byte)descriptor.Op);
             message.Serialize(writer);
-            Service?.netManager?.SendToAll(writer, descriptor.Delivery);
+
+            if (SceneNet.IndependentTravelEnabled)
+                SendToSameScenePeers(writer, descriptor.Delivery);
+            else
+                Service?.netManager?.SendToAll(writer, descriptor.Delivery);
         }
         finally
         {

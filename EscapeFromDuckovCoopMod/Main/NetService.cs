@@ -1,4 +1,4 @@
-﻿// Escape-From-Duckov-Coop-Mod-Preview
+// Escape-From-Duckov-Coop-Mod-Preview
 // Copyright (C) 2025  Mr.sans and InitLoader's team
 //
 // This program is not a free software.
@@ -452,6 +452,9 @@ public class NetService : MonoBehaviour, INetEventListener, IModNetworkService
         _playerInvincibleUntil.Clear();
         CoopSyncDatabase.AI.Clear();
         COOPManager.AI?.Reset();
+        // 新会话：清空场景账本，避免把上一局的地图状态带进新局
+        SceneStateLedger.Clear();
+        SceneM._srvPeerScene.Clear();
         COOPManager.FriendlyFire?.OnNetworkStarted(IsServer);
 
         LocalPlayerManager.Instance.InitializeLocalPlayer();

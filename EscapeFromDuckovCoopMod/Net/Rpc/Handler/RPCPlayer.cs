@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using Cysharp.Threading.Tasks;
@@ -130,11 +130,19 @@ namespace EscapeFromDuckovCoopMod
             st.EquipmentList = message.Player.Equipment != null ? new List<EquipmentSyncData>(message.Player.Equipment) : new List<EquipmentSyncData>();
             st.WeaponList = message.Player.Weapons != null ? new List<WeaponSyncData>(message.Player.Weapons) : new List<WeaponSyncData>();
 
+            var hostScene = SceneStateLedger.CurrentSceneId;
+            var clientScene = st.SceneId;
+            var sameAsHost = !SceneNet.IndependentTravelEnabled ||
+                             string.IsNullOrEmpty(hostScene) ||
+                             string.IsNullOrEmpty(clientScene) ||
+                             string.Equals(hostScene, clientScene, StringComparison.Ordinal);
+
             if (message.Player.IsInGame && !service.remoteCharacters.ContainsKey(peer))
             {
-                HostSpawnAndLoadoutAsync(peer, st).Forget();
+                if (sameAsHost)
+                    HostSpawnAndLoadoutAsync(peer, st).Forget();
             }
-            else if (message.Player.IsInGame)
+            else if (message.Player.IsInGame && sameAsHost)
             {
                 if (service.remoteCharacters.TryGetValue(peer, out var go) && go != null)
                 {
@@ -150,6 +158,12 @@ namespace EscapeFromDuckovCoopMod
 
                 foreach (var e in st.EquipmentList) COOPManager.HostPlayer_Apply.ApplyEquipmentUpdate(peer, e.SlotHash, e.ItemId).Forget();
                 foreach (var w in st.WeaponList) COOPManager.HostPlayer_Apply.ApplyWeaponUpdate(peer, w.SlotHash, w.ItemId, w.Snapshot).Forget();
+            }
+            else if (message.Player.IsInGame && !sameAsHost && service.remoteCharacters.TryGetValue(peer, out var stray) && stray != null)
+            {
+                // 客户端去了别的图，销毁主机这边的旧替身
+                UnityEngine.Object.Destroy(stray);
+                service.remoteCharacters.Remove(peer);
             }
 
             service.playerStatuses[peer] = st;
@@ -200,11 +214,20 @@ namespace EscapeFromDuckovCoopMod
 
             service.clientPlayerStatuses.Clear();
 
+            // 独立分图：只在"和我同一张图"时才创建/更新远端角色，避免别的图的人出现在这里
+            var mySceneId = SceneStateLedger.CurrentSceneId;
+            var independentTravel = SceneNet.IndependentTravelEnabled;
+
             for (var i = 0; i < message.Players.Length; i++)
             {
                 var payload = message.Players[i];
                 if (service.IsSelfId(payload.PlayerId))
                     continue;
+
+                var sameScene = !independentTravel ||
+                                string.IsNullOrEmpty(mySceneId) ||
+                                string.IsNullOrEmpty(payload.SceneId) ||
+                                string.Equals(mySceneId, payload.SceneId, StringComparison.Ordinal);
 
                 if (!service.clientPlayerStatuses.TryGetValue(payload.PlayerId, out var st))
                     st = service.clientPlayerStatuses[payload.PlayerId] = new PlayerStatus();
@@ -234,13 +257,20 @@ namespace EscapeFromDuckovCoopMod
                     HealthBarNameDisplay.TryRefreshRemoteCharacter(existing, st.EndPoint, st.SteamName);
                 }
 
-                if (payload.IsInGame && (!service.clientRemoteCharacters.TryGetValue(payload.PlayerId, out var remote) || remote == null))
+                // 独立分图：该玩家去了别的图，销毁留在本地的替身，避免"别的图的人还站在这里"。
+                if (independentTravel && !sameScene && existing != null)
+                {
+                    UnityEngine.Object.Destroy(existing);
+                    service.clientRemoteCharacters.Remove(st.EndPoint);
+                }
+
+                if (payload.IsInGame && sameScene && (!service.clientRemoteCharacters.TryGetValue(payload.PlayerId, out var remote) || remote == null))
                 {
                     HandleClientSpawnAndLoadoutAsync(service, payload, st).Forget();
                     continue;
                 }
 
-                if (payload.IsInGame && service.clientRemoteCharacters.TryGetValue(payload.PlayerId, out var remoteObj) && remoteObj != null)
+                if (payload.IsInGame && sameScene && service.clientRemoteCharacters.TryGetValue(payload.PlayerId, out var remoteObj) && remoteObj != null)
                 {
                     HealthBarNameDisplay.TryRefreshRemoteCharacter(remoteObj, payload.PlayerId, st.SteamName);
 

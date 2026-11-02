@@ -1,4 +1,4 @@
-﻿// Escape-From-Duckov-Coop-Mod-Preview
+// Escape-From-Duckov-Coop-Mod-Preview
 // Copyright (C) 2025  Mr.sans and InitLoader's team
 //
 // This program is not a free software.
@@ -77,6 +77,10 @@ public sealed class CoopGeneralSettings
     public float ProjectileSyncMaxDistance = 120f;
     public bool TeleporterSpawnTogether = false;
     public bool FriendlyFirePlayers = false;
+
+    // 注：原先的 IndependentTravel 设置项已移除。
+    // 分图现在是无条件行为（见 SceneNet.IndependentTravelEnabled），不再需要开关。
+
     public UIThemeMode UiThemeMode = UIThemeMode.Black;
 
     public CoopGeneralSettings Clone() => (CoopGeneralSettings)MemberwiseClone();

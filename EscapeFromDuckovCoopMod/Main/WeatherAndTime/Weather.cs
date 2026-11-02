@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Reflection;
 using Duckov.Scenes;
@@ -25,6 +25,8 @@ public class Weather
     private float _clockTimer;
     private float _weatherTimer;
     private float _lootSyncTimer;
+
+    private float _ledgerCaptureTimer;
 
     private float _clientResyncTimer;
     private bool _clientClockSynced;
@@ -73,12 +75,24 @@ public class Weather
             if (_lootSyncTimer >= LootStateBroadcastInterval)
             {
                 _lootSyncTimer = 0f;
-                SendLootSnapshot(null);
+                if (SceneNet.IndependentTravelEnabled)
+                    SendLootSnapshotToSameScene();
+                else
+                    SendLootSnapshot(null);
             }
         }
         else
         {
             _lootSyncTimer = 0f;
+        }
+
+        // 独立分图：定时把主机当前场景的环境状态写进账本，
+        // 主机离开该图后，后来进入的玩家仍能拿到一致的门/箱子/可破坏物状态。
+        _ledgerCaptureTimer += deltaTime;
+        if (_ledgerCaptureTimer >= 5f)
+        {
+            _ledgerCaptureTimer = 0f;
+            SceneStateLedger.CaptureCurrentScene();
         }
     }
 
@@ -114,6 +128,29 @@ public class Weather
     {
         if (!IsServer || context.Sender == null) return;
 
+        // 独立分图：请求者不在主机所在场景时，不能用主机现场的实时快照回复，
+        // 否则会把主机这张图的门/箱子状态套到另一张图上。改为回放该场景的账本。
+        var peerScene = ResolvePeerScene(context.Sender);
+        var hostScene = SceneStateLedger.CurrentSceneId;
+        if (!string.IsNullOrEmpty(peerScene) && !string.IsNullOrEmpty(hostScene) &&
+            !string.Equals(peerScene, hostScene, StringComparison.Ordinal))
+        {
+            if (SceneStateLedger.TrySendTo(context.Sender, peerScene))
+            {
+                SendClockState(context.Sender, true);
+                SendWeatherState(context.Sender, true);
+                return;
+            }
+
+            // 账本里没有这张图（例如本局还没人去过），至少别把主机的场景状态发过去。
+            SendClockState(context.Sender, true);
+            SendWeatherState(context.Sender, true);
+            return;
+        }
+
+        // 同图：顺手刷新账本，供之后进入该图的人使用
+        SceneStateLedger.CaptureCurrentScene();
+
         SendClockState(context.Sender, true);
         SendWeatherState(context.Sender, true);
         SendLootSnapshot(context.Sender);
@@ -121,6 +158,20 @@ public class Weather
         LevelDataBoolNet.Server_SendCostTakerSnapshot(context.Sender);
         SendDestructibleSnapshot(context.Sender);
         SendExplosiveBarrelSnapshot(context.Sender);
+    }
+
+    private static string ResolvePeerScene(NetPeer peer)
+    {
+        if (peer == null) return string.Empty;
+
+        if (SceneM._srvPeerScene.TryGetValue(peer, out var sceneId) && !string.IsNullOrEmpty(sceneId))
+            return sceneId;
+
+        var service = NetService.Instance;
+        if (service != null && service.playerStatuses.TryGetValue(peer, out var status) && status != null)
+            return status.SceneId ?? string.Empty;
+
+        return string.Empty;
     }
 
     public void Client_HandleClockState(EnvClockStateRpc message)
@@ -447,6 +498,17 @@ public class Weather
             CoopTool.SendRpc(in rpc);
     }
 
+    private void SendLootSnapshotToSameScene()
+    {
+        if (!IsServer) return;
+
+        foreach (var peer in SceneM.Server_EnumPeersInSameSceneAsHost())
+        {
+            if (peer == null) continue;
+            SendLootSnapshot(peer);
+        }
+    }
+
     private void SendLootSnapshot(NetPeer target)
     {
         _lootSnapshotBuffer.Clear();
@@ -482,6 +544,7 @@ public class Weather
             }
 
             _lootSnapshotBuffer.Add((key, active));
+            SceneStateLedger.RecordLootState(key, active);
         }
 
         if (_lootSnapshotBuffer.Count == 0)
@@ -559,6 +622,7 @@ public class Weather
             }
 
             _doorSnapshotBuffer.Add((key, closed));
+            SceneStateLedger.RecordDoorState(key, closed);
         }
 
         if (_doorSnapshotBuffer.Count == 0) return;
@@ -618,6 +682,8 @@ public class Weather
         var idx = 0;
         foreach (var id in source)
             ids[idx++] = id;
+
+        SceneStateLedger.RecordDestructibles(ids);
 
         var rpc = new EnvDestructibleStateRpc
         {

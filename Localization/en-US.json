@@ -1085,6 +1085,14 @@
       "value": "Host only. When enabled, new and existing player proxies are set to the neutral team so friendly fire is possible; disabling restores everyone to the Player team."
     },
     {
+      "key": "ui.settings.independentTravel",
+      "value": "Independent Travel"
+    },
+    {
+      "key": "ui.settings.independentTravel.desc",
+      "value": "Host only. When enabled, players may travel to different maps on their own instead of moving together. Doors, loot boxes, breakables and paid devices are replayed per map from the host ledger, so later visitors see the same world."
+    },
+    {
       "key": "ui.settings.themeMode",
       "value": "UI Theme"
     },

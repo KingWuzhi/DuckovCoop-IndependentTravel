@@ -1,4 +1,4 @@
-﻿// Escape-From-Duckov-Coop-Mod-Preview
+// Escape-From-Duckov-Coop-Mod-Preview
 // Copyright (C) 2025  Mr.sans and InitLoader's team
 //
 // This program is not a free software.
@@ -202,6 +202,49 @@ public static class CoopTool
             message.Serialize(writer);
             target.Send(writer, descriptor.Delivery);
             NetDiagnostics.Instance.RecordOutbound(descriptor.Op, Math.Max(0, writer.Length - 1));
+        }
+        finally
+        {
+            RpcWriterPool.Return(writer);
+        }
+    }
+
+    /// <summary>
+    /// 只发给"当前位于 sceneId 这张图"的玩家。用于独立分图时避免跨图污染。
+    /// 场景未知的连接一律不发（等它上报 SCENE_READY 后由快照回放补齐）。
+    /// </summary>
+    public static void SendRpcToScene<T>(in T message, string sceneId, NetPeer excludePeer = null)
+        where T : struct, IRpcMessage
+    {
+        var service = Service;
+        if (service == null || !service.IsServer) return;
+
+        var descriptor = RpcRegistry.GetDescriptor<T>();
+        if (descriptor.Direction == RpcDirection.ClientToServer) return;
+
+        var manager = service.netManager;
+        if (manager == null) return;
+
+        var writer = RpcWriterPool.Rent();
+        try
+        {
+            writer.Put((byte)descriptor.Op);
+            message.Serialize(writer);
+            var payloadBytes = Math.Max(0, writer.Length - 1);
+
+            var peers = manager.ConnectedPeerList;
+            for (var i = 0; i < peers.Count; i++)
+            {
+                var peer = peers[i];
+                if (peer == null || peer == excludePeer) continue;
+
+                var peerScene = SceneStateLedger.ResolvePeerScene(peer);
+                if (string.IsNullOrEmpty(peerScene) || string.IsNullOrEmpty(sceneId)) continue;
+                if (!string.Equals(peerScene, sceneId, StringComparison.Ordinal)) continue;
+
+                peer.Send(writer, descriptor.Delivery);
+                NetDiagnostics.Instance.RecordOutbound(descriptor.Op, payloadBytes);
+            }
         }
         finally
         {

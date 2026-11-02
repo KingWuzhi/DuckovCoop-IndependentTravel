@@ -1,4 +1,4 @@
-﻿// Escape-From-Duckov-Coop-Mod-Preview
+// Escape-From-Duckov-Coop-Mod-Preview
 // Copyright (C) 2025  Mr.sans and InitLoader's team
 //
 // This program is not a free software.
@@ -712,15 +712,36 @@ public class SceneNet : MonoBehaviour
             }
         }
 
-        // 4) （可选）主机本地也显示客户端：在主机场景创建“该客户端”的远端克隆
-        if (!remoteCharacters.TryGetValue(fromPeer, out var exists) || exists == null)
-            CreateRemoteCharacter.CreateRemoteCharacterAsync(fromPeer, pos, rot, faceJson).Forget();
+        // 4) 只在该客户端与主机同图时，才在主机本地创建它的远端克隆；
+        //    不同图时把主机这边残留的旧克隆清掉，避免"别的图里还站着一个人"。
+        var hostSceneId = SceneStateLedger.CurrentSceneId;
+        var sameAsHost = string.IsNullOrEmpty(hostSceneId) ||
+                         string.Equals(sceneId, hostSceneId, StringComparison.Ordinal);
+
+        if (sameAsHost)
+        {
+            if (!remoteCharacters.TryGetValue(fromPeer, out var exists) || exists == null)
+                CreateRemoteCharacter.CreateRemoteCharacterAsync(fromPeer, pos, rot, faceJson).Forget();
+        }
+        else
+        {
+            if (remoteCharacters.TryGetValue(fromPeer, out var stale) && stale != null)
+                Destroy(stale);
+            remoteCharacters.Remove(fromPeer);
+        }
     }
 
     public void Host_BeginSceneVote_Simple(string targetSceneId, string curtainGuid,
         bool notifyEvac, bool saveToFile,
         bool useLocation, string locationName)
     {
+        // 独立分图：开启后不再发起全员投票，谁触发谁自己走，其他人留在原地图。
+        if (IndependentTravelEnabled)
+        {
+            Host_BeginIndependentTravel(targetSceneId, curtainGuid, notifyEvac, saveToFile, useLocation, locationName);
+            return;
+        }
+
         if (sceneVoteActive)
         {
             MModUI.ShowTip(CoopLocalization.Get("ui.sceneVote.alreadyActive"));
@@ -792,6 +813,69 @@ public class SceneNet : MonoBehaviour
         };
 
         CoopTool.SendRpc(in message);
+    }
+
+    // ===== 独立分图（Independent Travel）=====
+
+    /// <summary>
+    /// 永久启用：全员投票流程已取消，玩家可各自前往不同地图，不再强制全队同图。
+    /// 这里必须返回常量而不是读取本地设置项——该判断在主机与客户端两侧都会被读到
+    /// （RPCPlayer / AISyncService / LevelDataBoolNet / Weather），而设置项是 host-only
+    /// 且不参与网络同步，读本地值会让两边行为不一致。
+    /// 返回 true 后 Host_BeginSceneVote_Simple 与 HandleSceneVoteRequest 都会走
+    /// "只有发起者自己走"的分支，投票代码保留但不再可达（改回一行即可恢复）。
+    /// </summary>
+    public static bool IndependentTravelEnabled => true;
+
+    /// <summary>
+    /// 主机自己切换地图：只加载自己，不广播给其他玩家，其他人留在原地图。
+    /// </summary>
+    public void Host_BeginIndependentTravel(string targetSceneId, string curtainGuid,
+        bool notifyEvac, bool saveToFile, bool useLocation, string locationName)
+    {
+        sceneTargetId = targetSceneId ?? string.Empty;
+        sceneCurtainGuid = string.IsNullOrEmpty(curtainGuid) ? null : curtainGuid;
+        sceneNotifyEvac = notifyEvac;
+        sceneSaveToFile = saveToFile;
+        sceneUseLocation = useLocation;
+        sceneLocationName = locationName ?? string.Empty;
+        IsDoteleportMap = string.Equals(sceneLocationName, "DoTeleport", StringComparison.Ordinal);
+        IsMapSelectionEntry = string.Equals(sceneLocationName, "OnPointerClick", StringComparison.Ordinal);
+
+        sceneVoteActive = false;
+        sceneParticipantIds.Clear();
+        sceneReady.Clear();
+        localReady = false;
+        _localSceneLoadLaunched = false;
+
+        Debug.Log($"[SCENE] 独立分图：主机前往 '{sceneTargetId}'（不带动其他玩家）");
+        Server_ScheduleSceneLoad(0.35f);
+    }
+
+    /// <summary>
+    /// 放行某个客户端独自切换地图：只给这个 peer 发加载指令，主机不跟着走。
+    /// </summary>
+    public void Server_BeginClientIndependentTravel(NetPeer peer, string targetSceneId, string curtainGuid,
+        bool notifyEvac, bool saveToFile, bool useLocation, string locationName)
+    {
+        if (!IsServer || peer == null || string.IsNullOrEmpty(targetSceneId)) return;
+
+        var message = new SceneBeginLoadRpc
+        {
+            SceneId = targetSceneId,
+            CurtainGuid = string.IsNullOrEmpty(curtainGuid) ? null : curtainGuid,
+            NotifyEvac = notifyEvac,
+            SaveToFile = saveToFile,
+            UseLocation = useLocation,
+            LocationName = locationName ?? string.Empty,
+            ForceSpawnAtHost = false
+        };
+
+        CoopTool.SendRpcTo(peer, in message);
+
+        // 该玩家进入新图后会重新上报 SCENE_READY，_srvPeerScene 随之更新，
+        // 其他玩家走"不同图互相 DESPAWN"的既有逻辑。
+        Debug.Log($"[SCENE] 独立分图：放行 {peer.EndPoint} 前往 '{targetSceneId}'（主机留在原地）");
     }
 
     public UniTask AppendSceneGate(UniTask original)

@@ -1,4 +1,4 @@
-﻿// Escape-From-Duckov-Coop-Mod-Preview
+// Escape-From-Duckov-Coop-Mod-Preview
 // Copyright (C) 2025  Mr.sans and InitLoader's team
 //
 // This program is not a free software.
@@ -296,6 +296,8 @@ namespace EscapeFromDuckovCoopMod
             currentTranslations["ui.spectator.mode"] = "Spectator Mode: LMB ▶ Next | RMB ◀ Previous | Press F8 to end and view results (failsafe)";
             currentTranslations["ui.settings.friendlyFirePlayers"] = "Friendly Fire (Players)";
             currentTranslations["ui.settings.friendlyFirePlayers.desc"] = "Host only. When enabled, new and existing player proxies are set to the neutral team so friendly fire is possible; disabling restores everyone to the Player team.";
+            currentTranslations["ui.settings.independentTravel"] = "Independent Travel";
+            currentTranslations["ui.settings.independentTravel.desc"] = "Host only. When enabled, players may travel to different maps on their own instead of all moving together. Map content (doors, loot boxes, breakables, paid devices) is replayed from the host ledger so later visitors see the same world.";
             currentTranslations["ui.settings.themeMode"] = "UI Theme";
             currentTranslations["ui.settings.themeMode.desc"] = "Switches the co-op panel theme locally.";
             currentTranslations["ui.settings.theme.white"] = "White";
