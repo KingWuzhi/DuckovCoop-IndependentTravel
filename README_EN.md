@@ -7,6 +7,23 @@ English | **[简体中文](README.md)**
 
 ---
 
+> [!WARNING]
+> **This repository is a THIRD-PARTY MODIFIED VERSION — not an official release.**
+>
+> It is forked from **v1.3.6** of [Escape-From-Duckov-Coop-Mod-Preview](https://github.com/Mr-sans-and-InitLoader-s-team/Escape-From-Duckov-Coop-Mod-Preview)
+> by **Mr-sans-and-InitLoader-s-team**, and adds **independent map travel**: players no longer
+> have to pass a group vote and change maps together.
+>
+> - It contains **none** of the upstream v1.4.x changes, and is **not** published to Steam Workshop.
+> - Everyone in a session must use the same build (`BuildInfo.ModVersion` is checked on connect).
+> - License: **AGPLv3 + additional restrictions** — no commercial use, no game-server operation,
+>   attribution to the original author required. See [LICENSE_RESTRICTIONS.txt](LICENSE_RESTRICTIONS.txt)
+>   and [NOTICE-ATTRIBUTION.md](NOTICE-ATTRIBUTION.md).
+> - Installation, limitations and the build guide are documented in the Chinese [README.md](README.md).
+>   The sections below are the **upstream** README and do not describe this fork's installer or map behaviour.
+
+---
+
 ## 📖 Introduction
 
 **Escape From Duckov Coop Mod** is a multiplayer co-op mod developed for the game Escape From Duckov.

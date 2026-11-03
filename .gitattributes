@@ -1,0 +1,11 @@
+# 二进制文件：禁止换行转换，避免安装到游戏里的 DLL 哈希对不上
+*.dll binary
+*.pdb binary
+*.png binary
+*.jpg binary
+*.zip binary
+*.exe binary
+
+# 脚本统一 CRLF，方便在 Windows 上双击/右键运行
+*.ps1 text eol=crlf
+*.bat text eol=crlf

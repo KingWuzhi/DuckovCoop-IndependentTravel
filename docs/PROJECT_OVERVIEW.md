@@ -1,4 +1,4 @@
-﻿# 逃离鸭科夫联机 Mod「独立分图版」— 项目总览
+# 逃离鸭科夫联机 Mod「独立分图版」— 项目总览
 
 本仓库是《逃离鸭科夫》（Escape from Duckov）联机 Mod 的一个**第三方修改版**，基于上游 **v1.3.6** 的源码，把「切图必须全员投票、一起走」改成**「各走各的（独立分图）」**。
 
@@ -174,7 +174,9 @@ Steam **没有**「对单个创意工坊物品禁用自动更新」的开关。�
 
 | 文件 | 大小 | SHA256（前 16 位） |
 |---|---|---|
-| `EscapeFromDuckovCoopMod.dll` | 2,075,136 B | `E3D4686988F5234A` |
-| `EscapeFromDuckovModApi.dll` | 130,560 B | `C1BDE86D83DBF367` |
+| `EscapeFromDuckovCoopMod.dll` | 2,075,136 B | `CE395D1A2A9A8FEF` |
+| `EscapeFromDuckovModApi.dll` | 130,560 B | `0C53D7EC73EA8055` |
+
+完整校验和见 `release/_checksums.csv`；同一个文件在 `release/files/` 与安装到游戏里的那份必须哈希一致。
 
 编译内置版本号：`BuildInfo.ModVersion = "1.3.6.2"`（版本门槛校验的就是这个值，不是 `info.ini`）。
