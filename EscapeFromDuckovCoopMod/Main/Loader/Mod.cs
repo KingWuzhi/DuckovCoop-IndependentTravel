@@ -643,7 +643,12 @@ public class ModBehaviourF : MonoBehaviour
                         if (string.IsNullOrEmpty(SceneNet.Instance._srvGateSid))
                             SceneNet.Instance._srvGateSid = sid;
 
-                        if (sid == SceneNet.Instance._srvGateSid) SceneNet.Instance._srvGateReadyPids.Add(pid);
+                        if (sid == SceneNet.Instance._srvGateSid)
+                        {
+                            SceneNet.Instance._srvGateReadyPids.Add(pid);
+                            // 迟到的举手必须立刻放行：以前这里只记录不放行，客机会一直等到超时。
+                            SceneNet.Instance.Server_SendGateRelease(peer, SceneNet.Instance._srvGateSid);
+                        }
                     }
 
                     break;

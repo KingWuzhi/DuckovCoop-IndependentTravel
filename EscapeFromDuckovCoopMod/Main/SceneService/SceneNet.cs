@@ -948,9 +948,11 @@ public class SceneNet : MonoBehaviour
 
         WaitingSynchronizationUI.Instance.Show();
 
-        _cliGateDeadline = Time.realtimeSinceStartup + 10f; // 可调超时（防死锁）吃保底
+        _cliGateDeadline = Time.realtimeSinceStartup + 3f; // 兜底超时（防死锁）
 
-        while (/*!_cliSceneGateReleased &&*/ Time.realtimeSinceStartup < _cliGateDeadline)
+        // 注意：这里以前是 while (/*!_cliSceneGateReleased &&*/ ...)，放行标志被注释掉了，
+        // 于是无论主机是否放行都要等满整个超时（10 秒）。现恢复为收到放行即返回。
+        while (!_cliSceneGateReleased && Time.realtimeSinceStartup < _cliGateDeadline)
         {
             try
             {
@@ -998,7 +1000,7 @@ public class SceneNet : MonoBehaviour
         // 主机不阻塞：之后若有 SCENE_GATE_READY 迟到，就在接收处即刻单独放行 目前不想去写也没啥毛病
     }
 
-    private void Server_SendGateRelease(NetPeer peer, string sid)
+    internal void Server_SendGateRelease(NetPeer peer, string sid)
     {
         if (peer == null) return;
         var w = new NetDataWriter();
